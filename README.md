@@ -1,73 +1,230 @@
-# POX
+# 🚀 SDN Learning Switch using Mininet & POX
 
-POX is a networking software platform written in Python.
+## 📌 Overview
 
-POX started life as an OpenFlow controller, but can now also function as an
-OpenFlow switch, and can be useful for writing networking software in
-general.  It currently supports OpenFlow 1.0 and includes special support
-for the Open vSwitch/Nicira extensions.
+This project implements a **Software Defined Networking (SDN) Learning Switch** using **Mininet** and the **POX controller**. The controller dynamically learns MAC addresses and installs flow rules to efficiently forward packets, mimicking the behavior of a traditional Ethernet switch.
 
-POX versions are named.  Starting with POX "gar", POX officially requires
-Python 3.  The last version with support for Python 2 was POX "fangtooth".
-POX should run under Linux, Mac OS, and Windows.  (And just about anywhere
-else -- we've run it on Android phones, under FreeBSD, Haiku, and elsewhere.
-All you need is Python!)  Some features are not available on all platforms.
-Linux is the most featureful.
+---
 
-This README contains some information to get you started, but is purposely
-brief.  For more information, please see the full documentation.
+## 🎯 Objectives
 
+* Demonstrate **controller–switch interaction**
+* Implement **match–action flow rules**
+* Handle **PacketIn events**
+* Observe network behavior using:
 
-## Running POX
+  * `ping` (latency)
+  * `iperf` (throughput)
 
-`pox.py` boots up POX. It takes a list of component names on the command line,
-locates the components, calls their `launch()` function (if it exists), and
-then transitions to the "up" state.
+---
 
-If you run `./pox.py`, it will attempt to find an appropriate Python 3
-interpreter itself.  In particular, if there is a copy of PyPy in the main
-POX directory, it will use that (for a potentially large performance boost!).
-Otherwise it will look for things called `python3` and fall back to `python`.
-You can also, of course, invoke the desired Python interpreter manually
-(e.g., `python3 pox.py`).
+## 🛠️ Prerequisites
 
-The POX commandline optionally starts with POX's own options (see below).
-This is followed by the name of a POX component, which may be followed by
-options for that component.  This may be followed by further components
-and their options.
+Make sure you have the following installed:
 
-  ./pox.py [pox-options...] [component] [component-options...] ...
+* Ubuntu / WSL (recommended)
+* Python **3.6 – 3.9** (POX compatible)
+* Mininet
+* Open vSwitch
+* POX Controller
 
-### POX Options
+---
 
-While components' options are up to the component (see the component's
-documentation), as mentioned above, POX has some options of its own.
-Some useful ones are:
+## 📂 Project Structure
 
- | Option        | Meaning                                                   |
- | ------------- | --------------------------------------------------------- |
- |`--verbose`    | print stack traces for initialization exceptions          |
- |`--no-openflow`| don't start the openflow module automatically             |
+```
+pox/
+├── forwarding/
+│   └── switch_custom_USE_THIS.py   # Your controller logic
+├── pox.py
+```
 
+---
 
-## Components
+## ⚙️ Setup Instructions
 
-POX components are basically Python modules with a few POX-specific
-conventions.  They are looked for everywhere that Python normally looks, plus
-the `pox` and `ext` directories.  Thus, you can do the following:
+### 1️⃣ Clone POX (if not already)
 
-  ./pox.py forwarding.l2_learning
+```bash
+git clone https://github.com/noxrepo/pox.git
+cd pox
+```
 
-As mentioned above, you can pass options to the components by specifying
-options after the component name.  These are passed to the corresponding
-module's `launch()` funcion.  For example, if you want to run POX as an
-OpenFlow controller and control address or port it uses, you can pass those
-as options to the openflow._01 component:
+---
 
-  ./pox.py openflow.of_01 --address=10.1.1.1 --port=6634
+### 2️⃣ Add Your Controller File
 
+Place your file inside:
 
-## Further Documentation
+```bash
+pox/pox/forwarding/switch_custom_USE_THIS.py
+```
 
-The full POX documentation is available on GitHub at
-https://noxrepo.github.io/pox-doc/html/
+---
+
+### 3️⃣ Start POX Controller
+
+Open **Terminal 1**:
+
+```bash
+cd ~/pox
+./pox.py log.level --DEBUG openflow.of_01 forwarding.switch_custom_USE_THIS
+```
+
+Expected:
+
+* Controller starts successfully
+* Switch connection logs appear
+
+---
+
+### 4️⃣ Start Mininet
+
+Open **Terminal 2**:
+
+```bash
+sudo mn -c
+sudo mn --topo single,3 --mac --switch ovsk --controller remote
+```
+
+This creates:
+
+* 3 hosts → `h1, h2, h3`
+* 1 switch → `s1`
+
+---
+
+## 🧪 Testing & Validation
+
+### ✅ Test 1: Connectivity (Learning Behavior)
+
+```bash
+h1 ping h2
+```
+
+**Expected Behavior:**
+
+* Initial packets may be slower (flooding)
+* Later packets are faster (flow rules installed)
+
+---
+
+### ✅ Test 2: Throughput (iperf)
+
+Start server:
+
+```bash
+h2 iperf -s &
+```
+
+Run client:
+
+```bash
+h1 iperf -c h2
+```
+
+**Expected:**
+
+* Stable throughput
+* Efficient forwarding
+
+---
+
+### 🔍 View Flow Table
+
+```bash
+sudo ovs-ofctl dump-flows s1
+```
+
+**Shows:**
+
+* Flow rules installed by controller
+* Match–action entries
+
+---
+
+## 🔄 Test Scenarios
+
+### 🔹 Scenario 1: Learning Switch Behavior
+
+* Unknown destination → Flooding
+* Learned destination → Direct forwarding
+
+---
+
+### 🔹 Scenario 2: Controller Failure
+
+Stop controller (`Ctrl + C`) and run:
+
+```bash
+h1 ping h2
+```
+
+**Expected:**
+
+* No new flows installed
+* Network performance degrades
+
+---
+
+## 📊 Observations
+
+| Metric     | Tool      | Observation              |
+| ---------- | --------- | ------------------------ |
+| Latency    | ping      | Decreases after learning |
+| Throughput | iperf     | Stable after flow setup  |
+| Flow Rules | ovs-ofctl | Dynamically installed    |
+
+---
+
+## 📸 Proof of Execution
+
+Include screenshots of:
+
+* Ping results
+* iperf output
+* Flow table (`dump-flows`)
+* Controller logs
+
+---
+
+## 🧠 Key Concepts Demonstrated
+
+* SDN Architecture (Control vs Data Plane)
+* OpenFlow Protocol
+* MAC Learning
+* Flow Rule Installation
+* PacketIn Event Handling
+
+---
+
+## ▶️ Quick Run Summary
+
+```bash
+# Run controller
+./pox.py log.level --DEBUG openflow.of_01 forwarding.switch_custom_USE_THIS
+
+# Run Mininet
+sudo mn --topo single,3 --mac --switch ovsk --controller remote
+
+# Test
+h1 ping h2
+h2 iperf -s &
+h1 iperf -c h2
+```
+
+---
+
+## 📌 Conclusion
+
+This project successfully demonstrates how an SDN controller can dynamically manage network behavior by installing flow rules, improving efficiency compared to traditional switching.
+
+---
+
+## 📚 References
+
+* POX Documentation
+* Mininet Documentation
+* OpenFlow Specification
+
+---
